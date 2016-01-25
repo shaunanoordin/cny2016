@@ -9,13 +9,13 @@
   "babel": {
     "presets": ["es2015", "react"]
   },
-  "dependencies": {
+  "devDependencies": {
     "stylus": "0.52.4",
     "babel-cli": "6.0.15",
     "babel-preset-es2015": "6.0.15",
     "babel-preset-react": "6.0.15"
   },
   "scripts": {
-    "build": "babel src --out-dir app && stylus src -o app"
+    "start": "babel src --out-dir app && stylus src -o app"
   }
 }

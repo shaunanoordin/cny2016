@@ -4,7 +4,7 @@
 :root {
   font-family: "Lucida Console", monospace;
   font-size: 20px;
-  background: #eee;
+  background: #333;
   color: #333;
 }
 html,
@@ -23,7 +23,7 @@ body {
   margin: 0 auto;
   max-width: 100%;
   max-height: 100%;
-  background: #c33;
+  background: #fff;
   touch-action: none;
   image-rendering: optimizeSpeed;
   image-rendering: -moz-crisp-edges;
