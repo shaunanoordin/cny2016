@@ -28,7 +28,7 @@ var App = function () {
     App.STATE_PLAYING = 1;
     App.FRAMES_PER_SECOND = 30;
     App.COLOUR_SHADOW = "rgba(128,128,128,0.5)";
-    App.MAX_KEYS = 256;
+    App.MAX_KEYS = 128;
     //--------------------------------
 
     //--------------------------------
@@ -82,7 +82,7 @@ var App = function () {
     //--------------------------------
 
     //--------------------------------
-    this.runCycle = setInterval(this.run.bind(this), 1 / App.FRAMES_PER_SECOND);
+    this.runCycle = setInterval(this.run.bind(this), 1000 / App.FRAMES_PER_SECOND);
     //--------------------------------
   }
 
@@ -97,6 +97,12 @@ var App = function () {
         if (this.pointer.state == App.INPUT_ACTIVE) {
           this.player.x = this.pointer.now.x;
           this.player.y = this.pointer.now.y;
+        }
+
+        for (var i = 0; i < this.keys.length; i++) {
+          if (this.keys[i].state == App.INPUT_ACTIVE) {
+            this.keys[i].duration++;
+          }
         }
 
         if (this.keys[KeyCodes.LEFT].state == App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state != App.INPUT_ACTIVE) {
@@ -172,7 +178,7 @@ var App = function () {
     key: "onKeyDown",
     value: function onKeyDown(e) {
       var keyCode = this.getKeyCode(e);
-      if (keyCode > 0 && keyCode < App.MAX_KEYS) {
+      if (keyCode > 0 && keyCode < App.MAX_KEYS && this.keys[keyCode].state != App.INPUT_ACTIVE) {
         this.keys[keyCode].state = App.INPUT_ACTIVE;
         this.keys[keyCode].duration = 1;
       } //if keyCode == 0, there's an error.
