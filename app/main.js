@@ -24,11 +24,16 @@ var App = function () {
     App.INPUT_IDLE = 0;
     App.INPUT_ACTIVE = 1;
     App.INPUT_ENDED = 2;
+    App.INPUT_DISTANCE_SENSITIVITY = 64; //Only applicable to pointers.
+    App.INPUT_DURATION_SENSITIVITY = 2;
     App.STATE_START = 0;
-    App.STATE_PLAYING = 1;
+    App.STATE_ADVENTURE = 1;
+    App.STATE_END = 2;
     App.FRAMES_PER_SECOND = 30;
     App.COLOUR_SHADOW = "rgba(128,128,128,0.5)";
     App.MAX_KEYS = 128;
+
+    App.MONKEY_SPEED = 32;
     //--------------------------------
 
     //--------------------------------
@@ -36,11 +41,15 @@ var App = function () {
     this.canvas = document.getElementById("canvas");
     this.context = this.canvas.getContext("2d");
     this.console = document.getElementById("console");
+    this.boundingBox = undefined; //To be defined by this.updateSize().
+    this.sizeRatioX = 1;
+    this.sizeRatioY = 1;
     this.width = this.canvas.width;
     this.height = this.canvas.height;
 
     this.state = App.STATE_START;
-    this.player = new Actor(this.width / 2, this.height / 2);
+    this.player = new Actor(Actor.TYPE_MONKEY, this.width / 2, this.height / 2);
+    this.actors = [this.player];
     this.keys = new Array(App.MAX_KEYS);
     //--------------------------------
 
@@ -82,6 +91,13 @@ var App = function () {
     //--------------------------------
 
     //--------------------------------
+    if ("onresize" in window) {
+      window.onresize = this.updateSize.bind(this);
+    }
+    this.updateSize();
+    //--------------------------------
+
+    //--------------------------------
     this.runCycle = setInterval(this.run.bind(this), 1000 / App.FRAMES_PER_SECOND);
     //--------------------------------
   }
@@ -91,41 +107,107 @@ var App = function () {
   _createClass(App, [{
     key: "run",
     value: function run() {
+      //Switch To State
+      //--------------------------------
+      switch (this.state) {
+        case App.STATE_START:
+          this.run_start();
+          break;
+        case App.STATE_ADVENTURE:
+          this.run_adventure();
+          break;
+        case App.STATE_END:
+          this.run_end();
+          break;
+        default:
+          break;
+      }
+      //--------------------------------
+
+      //Cleanup Input
+      //--------------------------------
+      for (var i = 0; i < this.keys.length; i++) {
+        if (this.keys[i].state == App.INPUT_ACTIVE) {
+          this.keys[i].duration++;
+        } else if (this.keys[i].state == App.INPUT_ENDED) {
+          this.keys[i].duration = 0;
+          this.keys[i].state = App.INPUT_IDLE;
+        }
+      }
+      //--------------------------------
+    }
+
+    //----------------------------------------------------------------
+
+  }, {
+    key: "run_start",
+    value: function run_start() {
+      //TEST: Press up to start the game.
+      //--------------------------------
+      if (this.pointer.state == App.INPUT_ACTIVE && this.pointer.start.y - this.pointer.now.y > App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY || this.keys[KeyCodes.UP].state == App.INPUT_ACTIVE) {
+        this.state = App.STATE_ADVENTURE;
+        return;
+      }
+      //--------------------------------
+    }
+
+    //----------------------------------------------------------------
+
+  }, {
+    key: "run_adventure",
+    value: function run_adventure() {
+
+      //Get User Input
+      //--------------------------------
+      if (this.pointer.state == App.INPUT_ACTIVE) {
+        this.player.x = this.pointer.now.x;
+        this.player.y = this.pointer.now.y;
+      }
+
+      if (this.keys[KeyCodes.LEFT].state == App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state != App.INPUT_ACTIVE) {
+        this.player.x -= 2;
+      } else if (this.keys[KeyCodes.LEFT].state != App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state == App.INPUT_ACTIVE) {
+        this.player.x += 2;
+      }
+
+      if (this.keys[KeyCodes.UP].state == App.INPUT_ACTIVE && this.keys[KeyCodes.DOWN].state != App.INPUT_ACTIVE) {
+        this.player.y -= 2;
+      } else if (this.keys[KeyCodes.UP].state != App.INPUT_ACTIVE && this.keys[KeyCodes.DOWN].state == App.INPUT_ACTIVE) {
+        this.player.y += 2;
+      }
+
+      if (this.keys[KeyCodes.SPACE].state == App.INPUT_ACTIVE && this.keys[KeyCodes.SPACE].duration == App.INPUT_DURATION_SENSITIVITY) {
+        this.console.innerHTML += "+";
+      }
+      //--------------------------------
+
+      //Update Visuals
+      //--------------------------------
       this.context.clearRect(0, 0, this.width, this.height);
 
-      if (this.player) {
-        if (this.pointer.state == App.INPUT_ACTIVE) {
-          this.player.x = this.pointer.now.x;
-          this.player.y = this.pointer.now.y;
-        }
+      this.context.fillStyle = App.COLOUR_SHADOW;
+      this.context.beginPath();
+      this.context.arc(this.player.x, this.player.y, this.player.size / 2, 0, 2 * Math.PI);
+      this.context.fill();
+      this.context.closePath();
 
-        for (var i = 0; i < this.keys.length; i++) {
-          if (this.keys[i].state == App.INPUT_ACTIVE) {
-            this.keys[i].duration++;
-          }
-        }
+      this.context.beginPath();
+      this.context.moveTo(this.pointer.start.x, this.pointer.start.y);
+      this.context.lineTo(this.pointer.now.x, this.pointer.now.y);
+      this.context.stroke();
+      this.context.closePath();
+      //--------------------------------
+    }
 
-        if (this.keys[KeyCodes.LEFT].state == App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state != App.INPUT_ACTIVE) {
-          this.player.x -= 2;
-        } else if (this.keys[KeyCodes.LEFT].state != App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state == App.INPUT_ACTIVE) {
-          this.player.x += 2;
-        }
+    //----------------------------------------------------------------
 
-        if (this.keys[KeyCodes.UP].state == App.INPUT_ACTIVE && this.keys[KeyCodes.DOWN].state != App.INPUT_ACTIVE) {
-          this.player.y -= 2;
-        } else if (this.keys[KeyCodes.UP].state != App.INPUT_ACTIVE && this.keys[KeyCodes.DOWN].state == App.INPUT_ACTIVE) {
-          this.player.y += 2;
-        }
-
-        this.context.fillStyle = App.COLOUR_SHADOW;
-        this.context.beginPath();
-        this.context.arc(this.player.x, this.player.y, this.player.size / 2, 0, 2 * Math.PI);
-        this.context.fill();
-        this.context.closePath();
-
-        //this.console.innerHTML = this.pointer.now.x + ',' + this.pointer.now.y;
-        this.console.innerHTML = this.keys[KeyCodes.DOWN].state + ':' + this.keys[KeyCodes.DOWN].duration;
-      }
+  }, {
+    key: "run_end",
+    value: function run_end() {
+      //Update Visuals
+      //--------------------------------
+      this.context.clearRect(0, 0, this.width, this.height);
+      //--------------------------------
     }
 
     //----------------------------------------------------------------
@@ -157,7 +239,6 @@ var App = function () {
   }, {
     key: "getPointerXY",
     value: function getPointerXY(e) {
-      var boundingBox = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { left: 0, top: 0 };
       var clientX = 0;
       var clientY = 0;
       if (e.clientX && e.clientY) {
@@ -167,8 +248,8 @@ var App = function () {
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
       }
-      var inputX = (clientX - boundingBox.left) * this.width / boundingBox.width;
-      var inputY = (clientY - boundingBox.top) * this.height / boundingBox.height;
+      var inputX = (clientX - this.boundingBox.left) * this.sizeRatioX;
+      var inputY = (clientY - this.boundingBox.top) * this.sizeRatioY;
       return { x: inputX, y: inputY };
     }
 
@@ -210,6 +291,17 @@ var App = function () {
 
       return 0;
     }
+
+    //----------------------------------------------------------------
+
+  }, {
+    key: "updateSize",
+    value: function updateSize() {
+      var boundingBox = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { left: 0, top: 0 };
+      this.boundingBox = boundingBox;
+      this.sizeRatioX = this.width / this.boundingBox.width;
+      this.sizeRatioY = this.height / this.boundingBox.height;
+    }
   }]);
 
   return App;
@@ -220,19 +312,27 @@ var App = function () {
  */
 //==============================================================================
 
-var Actor = function Actor(x, y) {
+var Actor = function Actor(type, x, y) {
   _classCallCheck(this, Actor);
 
+  this.type = type;
   this.x = x;
   this.y = y;
-  this.size = 32;
+  this.velocity = {
+    x: 0,
+    y: 0
+  };
+  this.size = 64;
 };
+
+Actor.TYPE_MONKEY = 1;
+Actor.TYPE_BANANA = 2;
+Actor.TYPE_SPIKES = 3;
 //==============================================================================
 
 /*  Utility Classes
  */
 //==============================================================================
-
 var Utility = {
   randomInt: function randomInt(min, max) {
     var a = min < max ? min : max;
@@ -255,7 +355,9 @@ var KeyCodes = {
   UP: 38,
   RIGHT: 39,
   DOWN: 40,
-  ENTER: 13
+  ENTER: 13,
+  SPACE: 32,
+  ESCAPE: 27
 };
 
 var KeyValues = {
@@ -267,7 +369,11 @@ var KeyValues = {
   "Down": KeyCodes.DOWN,
   "ArrowRight": KeyCodes.RIGHT,
   "Right": KeyCodes.RIGHT,
-  "Enter": KeyCodes.ENTER
+  "Enter": KeyCodes.ENTER,
+  "Space": KeyCodes.SPACE,
+  " ": KeyCodes.SPACE,
+  "Esc": KeyCodes.ESCAPE,
+  "Escape": KeyCodes.ESCAPE
 };
 
 function ImageAsset(url) {
