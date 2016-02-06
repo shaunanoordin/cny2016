@@ -16,12 +16,12 @@ class App {
     App.INPUT_IDLE = 0;
     App.INPUT_ACTIVE = 1;
     App.INPUT_ENDED = 2;
-    App.INPUT_DISTANCE_SENSITIVITY = 64;  //Only applicable to pointers.
+    App.INPUT_DISTANCE_SENSITIVITY = 16;  //Only applicable to pointers.
     App.INPUT_DURATION_SENSITIVITY = 2;
     App.STATE_START = 0;
     App.STATE_ADVENTURE = 1;
     App.STATE_END = 2;
-    App.FRAMES_PER_SECOND = 30;
+    App.FRAMES_PER_SECOND = 50;
     App.COLOUR_SHADOW = 'rgba(128,128,128,0.5)';
     App.COLOUR_BANANA_SHADOW = 'rgba(255,255,64,0.5)';
     App.COLOUR_SPIKES_SHADOW = 'rgba(192,64,64,0.5)';
@@ -29,13 +29,14 @@ class App {
     App.COLOUR_TILE_VINE = 'rgba(128,192,128,1)';
     App.MAX_KEYS = 128;
     
-    App.MONKEY_SPEED = 8;
+    App.MONKEY_SPEED = 12;
     App.TILE_SIZE = 64;
-    App.TILE_SCROLL_SPEED = 8;
-    App.SPIKES_SPEED = App.TILE_SCROLL_SPEED + 4;
+    App.TILE_SCROLL_SPEED = 4;
+    App.GRAVITY = 4;
     
     App.TILE_TYPE_AIR = 0;
     App.TILE_TYPE_VINE = 1;
+    App.DIFFICULTY_RAMP = 50;
     //--------------------------------
     
     //--------------------------------
@@ -52,6 +53,7 @@ class App {
     this.state = App.STATE_START;
     this.player = new Actor(Actor.TYPE_MONKEY, this.width / 2, this.height / 2);
     this.actors = [this.player];
+    this.distanceTravelled = 0;
     this.tiles = [];
     this.tileRowCount = this.height / App.TILE_SIZE + 1;
     this.tileColCount = this.width / App.TILE_SIZE;
@@ -59,7 +61,6 @@ class App {
     for (let i = 0; i < this.tileRowCount; i++) {
       this.addTileRow();
     }
-    console.log(this.tiles);
     //--------------------------------
     
     //--------------------------------
@@ -158,6 +159,8 @@ class App {
                 (App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY)) ||
         this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE) {
       this.state = App.STATE_ADVENTURE;
+      this.pointer.state = App.INPUT_IDLE;
+      this.keys[KeyCodes.UP].state = App.INPUT_IDLE;
       return;
     }
     //--------------------------------
@@ -179,8 +182,25 @@ class App {
     this.player.intent = { x: 0, y: 0 };
     
     if (this.pointer.state === App.INPUT_ACTIVE) {
-      //this.player.x = this.pointer.now.x;
-      //this.player.y = this.pointer.now.y;
+      let distX = this.pointer.now.x - this.pointer.start.x;
+      let distY = this.pointer.now.y - this.pointer.start.y;
+      let dist = Math.sqrt(distX * distX + distY * distY);
+      
+      if (dist >= App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY) {
+        let angle = Math.atan2(distY, distX);
+        let speed = App.MONKEY_SPEED;        
+        this.player.intent.x = Math.cos(angle) * speed;
+        this.player.intent.y = Math.sin(angle) * speed;
+        
+        //UX improvement: reset the base point of the pointer so the player can
+        //switch directions much more easily.
+        if (dist >= App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY * 2) {
+          this.pointer.start.x = this.pointer.now.x - Math.cos(angle) *
+            App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY * 2;
+          this.pointer.start.y = this.pointer.now.y - Math.sin(angle) *
+            App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY * 2;
+        }
+      }
     }
     
     if (this.keys[KeyCodes.LEFT].state === App.INPUT_ACTIVE &&
@@ -206,7 +226,7 @@ class App {
         Utility.randomInt(App.TILE_SIZE, this.width - App.TILE_SIZE),
         Utility.randomInt(App.TILE_SIZE, this.height - App.TILE_SIZE));
       newActor.speed.y = (newActor.type === Actor.TYPE_SPIKES)
-        ? App.SPIKES_SPEED    
+        ? App.TILE_SCROLL_SPEED + App.GRAVITY
         : App.TILE_SCROLL_SPEED;
       this.actors.push(newActor);
     }
@@ -215,6 +235,7 @@ class App {
     //Climb Tree/Scroll the Tiles
     //--------------------------------
     this.tileYOffset += App.TILE_SCROLL_SPEED;
+    this.distanceTravelled += App.TILE_SCROLL_SPEED;
     if (this.tileYOffset >= 0) {
       this.tileYOffset -= App.TILE_SIZE;
       this.addTileRow();
@@ -285,11 +306,8 @@ class App {
     this.context.clearRect(0, 0, this.width, this.height);
     
     //Tiles
-    this.console.innerHTML = '';
     for (let y = 0; y < this.tiles.length; y++) {
-      this.console.innerHTML += '#';
       for (let x = 0; x < this.tiles[y].length; x++) {
-        this.console.innerHTML += '+';
         switch (this.tiles[y][x]) {
           case App.TILE_TYPE_VINE:
             this.context.fillStyle = App.COLOUR_TILE_VINE;
@@ -303,7 +321,6 @@ class App {
           App.TILE_SIZE, App.TILE_SIZE);
       }
     }
-    //this.console.innerHTML = this.tiles[0].length +'x'+ this.tiles.length;
     
     //Actors
     for (let i = this.actors.length - 1, actor; actor = this.actors[i]; i--) {
@@ -318,6 +335,16 @@ class App {
       }
       this.context.beginPath();
       this.context.arc(actor.x, actor.y, actor.size / 2, 0, 2 * Math.PI);
+      this.context.fill();
+      this.context.closePath();
+    }
+    
+    //Input Marker - Helps show where User Input started.
+    if (this.pointer.state === App.INPUT_ACTIVE) {
+      this.context.fillStyle = App.COLOUR_SHADOW;
+      this.context.beginPath();
+      this.context.arc(this.pointer.start.x, this.pointer.start.y,
+        App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY, 0, 2 * Math.PI);
       this.context.fill();
       this.context.closePath();
     }
@@ -437,14 +464,18 @@ class App {
   /*  Add a new row of tiles at the top.
    */
   addTileRow() {
+    //A new row of randomised tiles.
+    //--------------------------------
     let newRow = [];
     for (let i = 0; i < this.tileColCount; i++) {
       let newTile = (i >= 1 && i < this.tileColCount - 1)
-        ? Utility.randomInt(1,3)
+        ? Utility.randomInt(1,5)
         : 1;
       switch (newTile) {
         case 2:
         case 3:
+        case 4:
+        case 5:
           newTile = App.TILE_TYPE_VINE;
           break;
         default:
@@ -454,6 +485,37 @@ class App {
       newRow.push(newTile);
     }
     this.tiles.unshift(newRow);
+    //--------------------------------
+    
+    //Add a banana.
+    //--------------------------------
+    let difficultyLevel = this.distanceTravelled / (App.TILE_SIZE * App.DIFFICULTY_RAMP);
+    
+    if (difficultyLevel > 0 &&
+        Utility.randomInt(1,3) === 1) {
+      let newActor = new Actor(
+        Actor.TYPE_BANANA,
+        Utility.randomInt(App.TILE_SIZE, this.width - App.TILE_SIZE),
+        - App.TILE_SIZE / 2);
+      newActor.speed.y = App.TILE_SCROLL_SPEED;
+      this.actors.push(newActor);
+    }
+    //--------------------------------
+    
+    //Add increasing number of spikes.
+    //--------------------------------
+    for (let i = 2; i < difficultyLevel; i++) {
+      if (Utility.randomInt(1,6) === 1) {
+        let newActor = new Actor(
+          Actor.TYPE_SPIKES,
+          Utility.randomInt(App.TILE_SIZE, this.width - App.TILE_SIZE),
+          - App.TILE_SIZE / 2);
+        newActor.speed.y = App.TILE_SCROLL_SPEED +
+          App.GRAVITY * Utility.randomInt(1,3) * 0.5;
+        this.actors.push(newActor);
+      }
+    }
+    //--------------------------------
   }
   
   /*  Add bottom-most row of tiles.
@@ -473,7 +535,7 @@ class Actor {
     this.x = x;
     this.y = y;
     this.state = Actor.STATE_OK;
-    this.intention = {
+    this.intent = {
       x: 0,
       y: 0
     };
@@ -549,7 +611,8 @@ function ImageAsset(url) {
 }
 //==============================================================================
 
-//Initialisations
+/*  Initialisations
+ */
 //==============================================================================
 var app;
 window.onload = function() {
