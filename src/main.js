@@ -23,9 +23,13 @@ class App {
     App.STATE_END = 2;
     App.FRAMES_PER_SECOND = 30;
     App.COLOUR_SHADOW = "rgba(128,128,128,0.5)";
+    App.COLOUR_BANANA_SHADOW = "rgba(255,255,64,0.5)";
+    App.COLOUR_SPIKES_SHADOW = "rgba(192,64,64,0.5)";
     App.MAX_KEYS = 128;
     
-    App.MONKEY_SPEED = 32;
+    App.MONKEY_SPEED = 8;
+    App.TILE_SIZE = 32;
+    App.TILE_SCROLL = 2;
     //--------------------------------
     
     //--------------------------------
@@ -152,30 +156,66 @@ class App {
     
     //Get User Input
     //--------------------------------
+    this.player.intent = { x: 0, y: 0 };
+    
     if (this.pointer.state == App.INPUT_ACTIVE) {
-      this.player.x = this.pointer.now.x;
-      this.player.y = this.pointer.now.y;
+      //this.player.x = this.pointer.now.x;
+      //this.player.y = this.pointer.now.y;
     }
     
     if (this.keys[KeyCodes.LEFT].state == App.INPUT_ACTIVE &&
         this.keys[KeyCodes.RIGHT].state != App.INPUT_ACTIVE) {
-      this.player.x -= 2;
+      this.player.intent.x = -App.MONKEY_SPEED;
     } else if (this.keys[KeyCodes.LEFT].state != App.INPUT_ACTIVE &&
         this.keys[KeyCodes.RIGHT].state == App.INPUT_ACTIVE) {
-      this.player.x += 2;
+      this.player.intent.x = App.MONKEY_SPEED;
     }
     
     if (this.keys[KeyCodes.UP].state == App.INPUT_ACTIVE &&
         this.keys[KeyCodes.DOWN].state != App.INPUT_ACTIVE) {
-      this.player.y -= 2;
+      this.player.intent.y = -App.MONKEY_SPEED;
     } else if (this.keys[KeyCodes.UP].state != App.INPUT_ACTIVE &&
         this.keys[KeyCodes.DOWN].state == App.INPUT_ACTIVE) {
-      this.player.y += 2;
+      this.player.intent.y = App.MONKEY_SPEED;
     }
     
     if (this.keys[KeyCodes.SPACE].state == App.INPUT_ACTIVE &&
         this.keys[KeyCodes.SPACE].duration == App.INPUT_DURATION_SENSITIVITY) {
-      this.console.innerHTML += "+";
+      var newActor = new Actor(Actor.TYPE_BANANA,
+        Utility.randomInt(App.TILE_SIZE, this.width - App.TILE_SIZE),
+        Utility.randomInt(App.TILE_SIZE, this.height - App.TILE_SIZE));
+      this.actors.push(newActor);
+    }
+    //--------------------------------
+    
+    //Apply Physics
+    //--------------------------------
+    for (var i = 0, actor; actor = this.actors[i]; i++) {
+      if (actor == this.player) {
+        actor.speed.x = actor.intent.x;
+        actor.speed.y = actor.intent.y;
+      } else {
+        //Is it colliding with the player?
+        let collisionThreshold = this.player.size / 2 + actor.size / 2;
+        let distX = this.player.x - actor.x;
+        let distY = this.player.y - actor.y;
+        this.console.innerHTML = collisionThreshold + ' vs ' +
+          distX + ',' + distY;
+        
+        if (collisionThreshold * collisionThreshold >
+            distX * distX + distY * distY) {
+          actor.state = Actor.STATE_PLEASEDELETEME;
+        }
+      }
+      
+      //Physics? Physics!
+      actor.x += actor.speed.x;
+      actor.y += actor.speed.y;
+      
+      //Cleanup
+      if (actor.state === Actor.STATE_PLEASEDELETEME) {
+        this.actors.splice(i, 1);
+      }
     }
     //--------------------------------
     
@@ -183,17 +223,33 @@ class App {
     //--------------------------------
     this.context.clearRect(0, 0, this.width, this.height);
     
-    this.context.fillStyle = App.COLOUR_SHADOW;
-    this.context.beginPath();
-    this.context.arc(this.player.x, this.player.y, this.player.size / 2, 0, 2 * Math.PI);
-    this.context.fill();
-    this.context.closePath();
+    for (var i = this.actors.length - 1, actor; actor = this.actors[i]; i--) {
+      if (actor.type === Actor.TYPE_MONKEY) {
+        this.context.fillStyle = App.COLOUR_SHADOW;
+      } else if (actor.type === Actor.TYPE_BANANA) {
+        this.context.fillStyle = App.COLOUR_BANANA_SHADOW;
+      } else if (actor.type === Actor.TYPE_SPIKES) {
+        this.context.fillStyle = App.COLOUR_SPIKES_SHADOW;
+      } else {
+        this.context.fillStyle = App.COLOUR_SHADOW;
+      }
+      
+      
+      
+      
+      this.context.beginPath();
+      this.context.arc(actor.x, actor.y, actor.size / 2, 0, 2 * Math.PI);
+      this.context.fill();
+      this.context.closePath();
+    }
     
-    this.context.beginPath();
-    this.context.moveTo(this.pointer.start.x, this.pointer.start.y);
-    this.context.lineTo(this.pointer.now.x, this.pointer.now.y);
-    this.context.stroke();
-    this.context.closePath();
+    
+    
+    //this.context.beginPath();
+    //this.context.moveTo(this.pointer.start.x, this.pointer.start.y);
+    //this.context.lineTo(this.pointer.now.x, this.pointer.now.y);
+    //this.context.stroke();
+    //this.context.closePath();
     //--------------------------------
 
   }
@@ -302,7 +358,12 @@ class Actor {
     this.type = type;
     this.x = x;
     this.y = y;
-    this.velocity = {
+    this.state = Actor.STATE_OK;
+    this.intention = {
+      x: 0,
+      y: 0
+    };
+    this.speed = {
       x: 0,
       y: 0
     };
@@ -312,6 +373,8 @@ class Actor {
 Actor.TYPE_MONKEY = 1;
 Actor.TYPE_BANANA = 2;
 Actor.TYPE_SPIKES = 3;
+Actor.STATE_OK = 1;
+Actor.STATE_PLEASEDELETEME = 2;
 //==============================================================================
 
 /*  Utility Classes
