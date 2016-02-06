@@ -22,14 +22,20 @@ class App {
     App.STATE_ADVENTURE = 1;
     App.STATE_END = 2;
     App.FRAMES_PER_SECOND = 30;
-    App.COLOUR_SHADOW = "rgba(128,128,128,0.5)";
-    App.COLOUR_BANANA_SHADOW = "rgba(255,255,64,0.5)";
-    App.COLOUR_SPIKES_SHADOW = "rgba(192,64,64,0.5)";
+    App.COLOUR_SHADOW = 'rgba(128,128,128,0.5)';
+    App.COLOUR_BANANA_SHADOW = 'rgba(255,255,64,0.5)';
+    App.COLOUR_SPIKES_SHADOW = 'rgba(192,64,64,0.5)';
+    App.COLOUR_TILE_AIR = 'rgba(192,255,255,1)';
+    App.COLOUR_TILE_VINE = 'rgba(128,192,128,1)';
     App.MAX_KEYS = 128;
     
     App.MONKEY_SPEED = 8;
-    App.TILE_SIZE = 32;
-    App.TILE_SCROLL = 2;
+    App.TILE_SIZE = 64;
+    App.TILE_SCROLL_SPEED = 8;
+    App.SPIKES_SPEED = App.TILE_SCROLL_SPEED + 4;
+    
+    App.TILE_TYPE_AIR = 0;
+    App.TILE_TYPE_VINE = 1;
     //--------------------------------
     
     //--------------------------------
@@ -43,14 +49,21 @@ class App {
     this.width = this.canvas.width;
     this.height = this.canvas.height;
     
-
     this.state = App.STATE_START;
     this.player = new Actor(Actor.TYPE_MONKEY, this.width / 2, this.height / 2);
     this.actors = [this.player];
-    this.keys = new Array(App.MAX_KEYS);
+    this.tiles = [];
+    this.tileRowCount = this.height / App.TILE_SIZE + 1;
+    this.tileColCount = this.width / App.TILE_SIZE;
+    this.tileYOffset = -App.TILE_SIZE;
+    for (let i = 0; i < this.tileRowCount; i++) {
+      this.addTileRow();
+    }
+    console.log(this.tiles);
     //--------------------------------
     
     //--------------------------------
+    this.keys = new Array(App.MAX_KEYS);
     for (let i = 0; i < this.keys.length; i++) {
       this.keys[i] = {
         state: App.INPUT_IDLE,
@@ -125,9 +138,9 @@ class App {
     //Cleanup Input
     //--------------------------------
     for (let i = 0; i < this.keys.length; i++) {
-      if (this.keys[i].state == App.INPUT_ACTIVE) {
+      if (this.keys[i].state === App.INPUT_ACTIVE) {
         this.keys[i].duration++;
-      } else if (this.keys[i].state == App.INPUT_ENDED) {
+      } else if (this.keys[i].state === App.INPUT_ENDED) {
         this.keys[i].duration = 0;
         this.keys[i].state = App.INPUT_IDLE;
       }
@@ -140,13 +153,20 @@ class App {
   run_start() {
     //TEST: Press up to start the game.
     //--------------------------------
-    if ((this.pointer.state == App.INPUT_ACTIVE &&
+    if ((this.pointer.state === App.INPUT_ACTIVE &&
             (this.pointer.start.y - this.pointer.now.y) >
                 (App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY)) ||
-        this.keys[KeyCodes.UP].state == App.INPUT_ACTIVE) {
+        this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE) {
       this.state = App.STATE_ADVENTURE;
       return;
     }
+    //--------------------------------
+    
+    //Update Visuals
+    //--------------------------------
+    this.context.clearRect(0, 0, this.width, this.height);
+    this.context.fillStyle = '#39c';
+    this.context.fillRect(0, 0, this.width, this.height);
     //--------------------------------
   }
   
@@ -158,64 +178,105 @@ class App {
     //--------------------------------
     this.player.intent = { x: 0, y: 0 };
     
-    if (this.pointer.state == App.INPUT_ACTIVE) {
+    if (this.pointer.state === App.INPUT_ACTIVE) {
       //this.player.x = this.pointer.now.x;
       //this.player.y = this.pointer.now.y;
     }
     
-    if (this.keys[KeyCodes.LEFT].state == App.INPUT_ACTIVE &&
+    if (this.keys[KeyCodes.LEFT].state === App.INPUT_ACTIVE &&
         this.keys[KeyCodes.RIGHT].state != App.INPUT_ACTIVE) {
       this.player.intent.x = -App.MONKEY_SPEED;
     } else if (this.keys[KeyCodes.LEFT].state != App.INPUT_ACTIVE &&
-        this.keys[KeyCodes.RIGHT].state == App.INPUT_ACTIVE) {
+        this.keys[KeyCodes.RIGHT].state === App.INPUT_ACTIVE) {
       this.player.intent.x = App.MONKEY_SPEED;
     }
     
-    if (this.keys[KeyCodes.UP].state == App.INPUT_ACTIVE &&
+    if (this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE &&
         this.keys[KeyCodes.DOWN].state != App.INPUT_ACTIVE) {
       this.player.intent.y = -App.MONKEY_SPEED;
     } else if (this.keys[KeyCodes.UP].state != App.INPUT_ACTIVE &&
-        this.keys[KeyCodes.DOWN].state == App.INPUT_ACTIVE) {
+        this.keys[KeyCodes.DOWN].state === App.INPUT_ACTIVE) {
       this.player.intent.y = App.MONKEY_SPEED;
     }
     
-    if (this.keys[KeyCodes.SPACE].state == App.INPUT_ACTIVE &&
-        this.keys[KeyCodes.SPACE].duration == App.INPUT_DURATION_SENSITIVITY) {
-      var newActor = new Actor(Actor.TYPE_BANANA,
+    if (this.keys[KeyCodes.SPACE].state === App.INPUT_ACTIVE &&
+        this.keys[KeyCodes.SPACE].duration === App.INPUT_DURATION_SENSITIVITY) {
+      let newActor = new Actor(
+        ((Utility.randomInt(1,2) === 1) ? Actor.TYPE_SPIKES : Actor.TYPE_BANANA),
         Utility.randomInt(App.TILE_SIZE, this.width - App.TILE_SIZE),
         Utility.randomInt(App.TILE_SIZE, this.height - App.TILE_SIZE));
+      newActor.speed.y = (newActor.type === Actor.TYPE_SPIKES)
+        ? App.SPIKES_SPEED    
+        : App.TILE_SCROLL_SPEED;
       this.actors.push(newActor);
+    }
+    //--------------------------------
+    
+    //Climb Tree/Scroll the Tiles
+    //--------------------------------
+    this.tileYOffset += App.TILE_SCROLL_SPEED;
+    if (this.tileYOffset >= 0) {
+      this.tileYOffset -= App.TILE_SIZE;
+      this.addTileRow();
+      this.removeTileRow();
     }
     //--------------------------------
     
     //Apply Physics
     //--------------------------------
-    for (var i = 0, actor; actor = this.actors[i]; i++) {
-      if (actor == this.player) {
+    for (let i = 0, actor; actor = this.actors[i]; i++) {
+      if (actor == this.player) {  //Player
+        //----------------
         actor.speed.x = actor.intent.x;
         actor.speed.y = actor.intent.y;
-      } else {
+        //----------------
+      } else {  //Banana or Spikes
         //Is it colliding with the player?
+        //----------------
         let collisionThreshold = this.player.size / 2 + actor.size / 2;
         let distX = this.player.x - actor.x;
         let distY = this.player.y - actor.y;
-        this.console.innerHTML = collisionThreshold + ' vs ' +
-          distX + ',' + distY;
-        
         if (collisionThreshold * collisionThreshold >
             distX * distX + distY * distY) {
+          if (actor.type === Actor.TYPE_BANANA) {
+            actor.state = Actor.STATE_PLEASEDELETEME;
+          } else if (actor.type === Actor.TYPE_SPIKES) {
+            this.state = App.STATE_END;
+            return;
+          }
+        }
+        //----------------
+      }
+            
+      //Physics? Physics!
+      //----------------
+      actor.x += actor.speed.x;
+      actor.y += actor.speed.y;
+      //----------------
+      
+      //Check the boundaries of the actor.
+      //----------------
+      if (actor.y > this.height + actor.size) {  //Bottom border
+        if (actor == this.player) {
+          this.state = App.STATE_END;
+          return;
+        } else {
           actor.state = Actor.STATE_PLEASEDELETEME;
         }
       }
-      
-      //Physics? Physics!
-      actor.x += actor.speed.x;
-      actor.y += actor.speed.y;
+      actor.y = Math.max(actor.y, -actor.size / 2);  //Top border
+      actor.x = Math.max(actor.x, actor.size / 2);  //Left border
+      actor.x = Math.min(actor.x, this.width - actor.size / 2);  //Right border
+      //----------------
       
       //Cleanup
+      //----------------
       if (actor.state === Actor.STATE_PLEASEDELETEME) {
         this.actors.splice(i, 1);
+        //Note that the for() loop counts down, not counts up, to accommodate
+        //the splice().
       }
+      //----------------
     }
     //--------------------------------
     
@@ -223,7 +284,29 @@ class App {
     //--------------------------------
     this.context.clearRect(0, 0, this.width, this.height);
     
-    for (var i = this.actors.length - 1, actor; actor = this.actors[i]; i--) {
+    //Tiles
+    this.console.innerHTML = '';
+    for (let y = 0; y < this.tiles.length; y++) {
+      this.console.innerHTML += '#';
+      for (let x = 0; x < this.tiles[y].length; x++) {
+        this.console.innerHTML += '+';
+        switch (this.tiles[y][x]) {
+          case App.TILE_TYPE_VINE:
+            this.context.fillStyle = App.COLOUR_TILE_VINE;
+            break;
+          default:
+            this.context.fillStyle = App.COLOUR_TILE_AIR;
+            break;
+        }
+        this.context.fillRect(
+          x * App.TILE_SIZE, y * App.TILE_SIZE + this.tileYOffset,
+          App.TILE_SIZE, App.TILE_SIZE);
+      }
+    }
+    //this.console.innerHTML = this.tiles[0].length +'x'+ this.tiles.length;
+    
+    //Actors
+    for (let i = this.actors.length - 1, actor; actor = this.actors[i]; i--) {
       if (actor.type === Actor.TYPE_MONKEY) {
         this.context.fillStyle = App.COLOUR_SHADOW;
       } else if (actor.type === Actor.TYPE_BANANA) {
@@ -233,23 +316,22 @@ class App {
       } else {
         this.context.fillStyle = App.COLOUR_SHADOW;
       }
-      
-      
-      
-      
       this.context.beginPath();
       this.context.arc(actor.x, actor.y, actor.size / 2, 0, 2 * Math.PI);
       this.context.fill();
       this.context.closePath();
     }
     
-    
-    
     //this.context.beginPath();
     //this.context.moveTo(this.pointer.start.x, this.pointer.start.y);
     //this.context.lineTo(this.pointer.now.x, this.pointer.now.y);
     //this.context.stroke();
     //this.context.closePath();
+    //--------------------------------
+    
+    //Debug
+    //--------------------------------
+    //this.console.innerHTML = 'Actors: ' + this.actors.length;
     //--------------------------------
 
   }
@@ -260,6 +342,8 @@ class App {
     //Update Visuals
     //--------------------------------
     this.context.clearRect(0, 0, this.width, this.height);
+    this.context.fillStyle = '#c33';
+    this.context.fillRect(0, 0, this.width, this.height);
     //--------------------------------
   }
   
@@ -346,6 +430,36 @@ class App {
     this.boundingBox = boundingBox;
     this.sizeRatioX = this.width / this.boundingBox.width;
     this.sizeRatioY = this.height / this.boundingBox.height;
+  }
+  
+  //----------------------------------------------------------------
+  
+  /*  Add a new row of tiles at the top.
+   */
+  addTileRow() {
+    let newRow = [];
+    for (let i = 0; i < this.tileColCount; i++) {
+      let newTile = (i >= 1 && i < this.tileColCount - 1)
+        ? Utility.randomInt(1,3)
+        : 1;
+      switch (newTile) {
+        case 2:
+        case 3:
+          newTile = App.TILE_TYPE_VINE;
+          break;
+        default:
+          newTile = App.TILE_TYPE_AIR;
+          break;
+      }
+      newRow.push(newTile);
+    }
+    this.tiles.unshift(newRow);
+  }
+  
+  /*  Add bottom-most row of tiles.
+   */
+  removeTileRow() {
+    this.tiles.pop();
   }
 }
 //==============================================================================
