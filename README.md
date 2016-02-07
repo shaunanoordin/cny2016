@@ -1,7 +1,5 @@
-CNY2016
-=======
-
-_Monkey-themed game/greeting card for Chinese New Year 2016_
+Chinese New Year 2016 - Year of the Monkey Card & Game
+======================================================
 
 This is a combination Chinese New Year greeting card and mini video game to
 celebrate the Year of the Monkey. It's a tradition of mine!
@@ -29,6 +27,5 @@ Previous Chinese New Year greeting cards/games:
 * http://shaunanoordin/cny2015/
 * http://shaunanoordin/cny2014/
 * http://shaunanoordin/cny2013/
-
 
 Code and art by Shaun A. Noordin (http://shaunanoordin.com) 20160207
