@@ -40,7 +40,10 @@ var App = function () {
     App.COLOUR_SPIKES_SHADOW = 'rgba(192,64,64,0.1)';
     App.FONT_SIZE = 32;
     App.FONT_STYLE = App.FONT_SIZE + 'px Verdana';
+    App.FONT_STYLE_BIG = Math.floor(1.5 * App.FONT_SIZE) + 'px Verdana';
     App.FONT_COLOUR = 'rgba(255,255,255,0.8)';
+    App.FONT_COLOUR_STRONG = 'rgba(204,51,51,1)';
+    App.FONT_ALIGN = 'center';
 
     App.MONKEY_SPEED = 12;
     App.TILE_SIZE = 64;
@@ -54,6 +57,8 @@ var App = function () {
 
     //--------------------------------
     this.sprites = new ImageAsset('./assets/cny2016-sprites.png');
+    this.panelStart = new ImageAsset('./assets/cny2016-panel-start.png');
+    this.panelEnd = new ImageAsset('./assets/cny2016-panel-end.png');
     this.animationCounter = 0;
     App.ANIMATION_STEP_LENGTH = 8;
     App.ANIMATION_COUNTER_MAX = 4 * App.ANIMATION_STEP_LENGTH;
@@ -241,11 +246,12 @@ var App = function () {
     value: function run_start() {
       //Check if assets are loaded
       //--------------------------------
-      if (!this.sprites.loaded) {
+      if (!this.sprites.loaded || !this.panelStart.loaded || !this.panelEnd.loaded) {
         this.context.clearRect(0, 0, this.width, this.height);
         this.context.font = App.FONT_STYLE;
         this.context.fillStyle = App.FONT_COLOUR;
-        this.context.fillText('Happy Chinese New Year! Loading...', App.FONT_SIZE / 2, App.FONT_SIZE);
+        this.context.textAlign = App.FONT_ALIGN;
+        this.context.fillText('Happy Chinese New Year! Loading...', this.width / 2, App.FONT_SIZE);
         return;
       }
       //--------------------------------
@@ -262,8 +268,7 @@ var App = function () {
       //Update Visuals
       //--------------------------------
       this.context.clearRect(0, 0, this.width, this.height);
-      this.context.fillStyle = '#39c';
-      this.context.fillRect(0, 0, this.width, this.height);
+      this.context.drawImage(this.panelStart.img, 0, 0);
 
       var animationStep = Math.floor(this.animationCounter / App.ANIMATION_STEP_LENGTH);
 
@@ -279,7 +284,7 @@ var App = function () {
   }, {
     key: 'run_end',
     value: function run_end() {
-      //Get Input: Press up to start the game.
+      //Get Input: Press up to restart the game.
       //--------------------------------
       this.interactionWaitCounter = Math.min(this.interactionWaitCounter + 1, App.INTERACTION_WAIT_LIMIT);
       if (this.interactionWaitCounter === App.INTERACTION_WAIT_LIMIT && (this.pointer.state === App.INPUT_ACTIVE && this.pointer.start.y - this.pointer.now.y > App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY || this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE)) {
@@ -291,10 +296,14 @@ var App = function () {
       //Update Visuals
       //--------------------------------
       this.context.clearRect(0, 0, this.width, this.height);
-      this.context.fillStyle = '#c33';
-      this.context.fillRect(0, 0, this.width, this.height);
+      this.context.drawImage(this.panelEnd.img, 0, 0);
 
       var animationStep = Math.floor(this.animationCounter / App.ANIMATION_STEP_LENGTH);
+
+      this.context.font = App.FONT_STYLE_BIG;
+      this.context.fillStyle = App.FONT_COLOUR_STRONG;
+      this.context.textAlign = App.FONT_ALIGN;
+      this.context.fillText(this.score, this.width / 2, Math.round(App.FONT_SIZE * 6.5));
 
       if (this.interactionWaitCounter === App.INTERACTION_WAIT_LIMIT) {
         var arrowSprite = animationStep < 2 ? App.SPRITE_DATA.ARROW_UP_0 : App.SPRITE_DATA.ARROW_UP_1;
@@ -489,7 +498,8 @@ var App = function () {
       //Score
       this.context.font = App.FONT_STYLE;
       this.context.fillStyle = App.FONT_COLOUR;
-      this.context.fillText('Bananas: ' + this.score, App.FONT_SIZE, App.FONT_SIZE);
+      this.context.textAlign = App.FONT_ALIGN;
+      this.context.fillText('Bananas: ' + this.score, this.width / 2, App.FONT_SIZE);
 
       //Input Marker - Helps show where User Input started.
       if (this.pointer.state === App.INPUT_ACTIVE) {

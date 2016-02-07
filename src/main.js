@@ -32,7 +32,10 @@ class App {
     App.COLOUR_SPIKES_SHADOW = 'rgba(192,64,64,0.1)';
     App.FONT_SIZE = 32;
     App.FONT_STYLE = App.FONT_SIZE + 'px Verdana';
+    App.FONT_STYLE_BIG = Math.floor(1.5 * App.FONT_SIZE) + 'px Verdana';
     App.FONT_COLOUR = 'rgba(255,255,255,0.8)';
+    App.FONT_COLOUR_STRONG = 'rgba(204,51,51,1)'; 
+    App.FONT_ALIGN = 'center';
     
     App.MONKEY_SPEED = 12;
     App.TILE_SIZE = 64;
@@ -46,6 +49,8 @@ class App {
     
     //--------------------------------
     this.sprites = new ImageAsset('./assets/cny2016-sprites.png');
+    this.panelStart = new ImageAsset('./assets/cny2016-panel-start.png');
+    this.panelEnd = new ImageAsset('./assets/cny2016-panel-end.png');
     this.animationCounter = 0;
     App.ANIMATION_STEP_LENGTH = 8;
     App.ANIMATION_COUNTER_MAX = 4 * App.ANIMATION_STEP_LENGTH;
@@ -231,12 +236,15 @@ class App {
   run_start() {
     //Check if assets are loaded
     //--------------------------------
-    if (!this.sprites.loaded) {
+    if (!this.sprites.loaded ||
+        !this.panelStart.loaded ||
+        !this.panelEnd.loaded) {
       this.context.clearRect(0, 0, this.width, this.height);
       this.context.font = App.FONT_STYLE;
       this.context.fillStyle = App.FONT_COLOUR;
+      this.context.textAlign = App.FONT_ALIGN;
       this.context.fillText('Happy Chinese New Year! Loading...',
-        App.FONT_SIZE / 2, App.FONT_SIZE);
+        this.width / 2, App.FONT_SIZE);
       return;
     }
     //--------------------------------
@@ -258,8 +266,7 @@ class App {
     //Update Visuals
     //--------------------------------
     this.context.clearRect(0, 0, this.width, this.height);
-    this.context.fillStyle = '#39c';
-    this.context.fillRect(0, 0, this.width, this.height);
+    this.context.drawImage(this.panelStart.img, 0, 0);   
     
     let animationStep = Math.floor(this.animationCounter / App.ANIMATION_STEP_LENGTH);
     
@@ -297,10 +304,15 @@ class App {
     //Update Visuals
     //--------------------------------
     this.context.clearRect(0, 0, this.width, this.height);
-    this.context.fillStyle = '#c33';
-    this.context.fillRect(0, 0, this.width, this.height);
+    this.context.drawImage(this.panelEnd.img, 0, 0);
     
     let animationStep = Math.floor(this.animationCounter / App.ANIMATION_STEP_LENGTH);
+    
+    this.context.font = App.FONT_STYLE_BIG;
+    this.context.fillStyle = App.FONT_COLOUR_STRONG;
+    this.context.textAlign = App.FONT_ALIGN;
+    this.context.fillText(this.score,
+      this.width / 2, Math.round(App.FONT_SIZE * 6.5));
     
     if (this.interactionWaitCounter === App.INTERACTION_WAIT_LIMIT) {      
       let arrowSprite = (animationStep < 2) ?
@@ -514,8 +526,9 @@ class App {
     //Score
     this.context.font = App.FONT_STYLE;
     this.context.fillStyle = App.FONT_COLOUR;
+    this.context.textAlign = App.FONT_ALIGN;
     this.context.fillText('Bananas: ' + this.score,
-      App.FONT_SIZE, App.FONT_SIZE);
+      this.width / 2, App.FONT_SIZE);
     
     //Input Marker - Helps show where User Input started.
     if (this.pointer.state === App.INPUT_ACTIVE) {
