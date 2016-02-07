@@ -30,12 +30,14 @@ var App = function () {
     App.STATE_ADVENTURE = 1;
     App.STATE_END = 2;
     App.FRAMES_PER_SECOND = 50;
-    App.COLOUR_SHADOW = 'rgba(128,128,128,0.5)';
-    App.COLOUR_BANANA_SHADOW = 'rgba(255,255,64,0.5)';
-    App.COLOUR_SPIKES_SHADOW = 'rgba(192,64,64,0.5)';
-    App.COLOUR_TILE_AIR = 'rgba(192,255,255,1)';
-    App.COLOUR_TILE_VINE = 'rgba(128,192,128,1)';
     App.MAX_KEYS = 128;
+
+    App.COLOUR_SHADOW = 'rgba(128,128,128,0.5)';
+    App.COLOUR_BANANA_SHADOW = 'rgba(255,255,64,0.2)';
+    App.COLOUR_SPIKES_SHADOW = 'rgba(192,64,64,0.1)';
+    App.FONT_SIZE = 32;
+    App.FONT_STYLE = App.FONT_SIZE + 'px Verdana';
+    App.FONT_COLOUR = 'rgba(255,255,255,0.8)';
 
     App.MONKEY_SPEED = 12;
     App.TILE_SIZE = 64;
@@ -45,6 +47,63 @@ var App = function () {
     App.TILE_TYPE_AIR = 0;
     App.TILE_TYPE_VINE = 1;
     App.DIFFICULTY_RAMP = 50;
+    //--------------------------------
+
+    //--------------------------------
+    this.sprites = new ImageAsset('./assets/cny2016-sprites.png');
+    this.animationCounter = 0;
+    App.ANIMATION_STEP_LENGTH = 8;
+    App.ANIMATION_COUNTER_MAX = 4 * App.ANIMATION_STEP_LENGTH;
+    //--------------------------------
+
+    //--------------------------------
+    App.SPRITE_DATA = {
+      MONKEY_0: { srcX: 0 * App.TILE_SIZE, srcY: 0,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE * 2 },
+      MONKEY_1: { srcX: 1 * App.TILE_SIZE, srcY: 0,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE * 2 },
+      MONKEY_2: { srcX: 2 * App.TILE_SIZE, srcY: 0,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE * 2 },
+      VINE_TILE: { srcX: 3 * App.TILE_SIZE, srcY: 0,
+        offsetX: 0, offsetY: 0,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      AIR_TILE: { srcX: 4 * App.TILE_SIZE, srcY: 0,
+        offsetX: 0, offsetY: 0,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      BANANA: { srcX: 3 * App.TILE_SIZE, srcY: App.TILE_SIZE,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      SPIKES: { srcX: 4 * App.TILE_SIZE, srcY: App.TILE_SIZE,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      ARROW_RIGHT_0: { srcX: 5 * App.TILE_SIZE, srcY: 0,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      ARROW_RIGHT_1: { srcX: 5 * App.TILE_SIZE, srcY: App.TILE_SIZE,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      ARROW_DOWN_0: { srcX: 6 * App.TILE_SIZE, srcY: 0,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      ARROW_DOWN_1: { srcX: 6 * App.TILE_SIZE, srcY: App.TILE_SIZE,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      ARROW_LEFT_0: { srcX: 7 * App.TILE_SIZE, srcY: 0,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      ARROW_LEFT_1: { srcX: 7 * App.TILE_SIZE, srcY: App.TILE_SIZE,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      ARROW_UP_0: { srcX: 8 * App.TILE_SIZE, srcY: 0,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE },
+      ARROW_UP_1: { srcX: 8 * App.TILE_SIZE, srcY: App.TILE_SIZE,
+        offsetX: -App.TILE_SIZE / 2, offsetY: -App.TILE_SIZE / 2,
+        width: App.TILE_SIZE, height: App.TILE_SIZE }
+    };
     //--------------------------------
 
     //--------------------------------
@@ -58,17 +117,15 @@ var App = function () {
     this.width = this.canvas.width;
     this.height = this.canvas.height;
 
-    this.state = App.STATE_START;
-    this.player = new Actor(Actor.TYPE_MONKEY, this.width / 2, this.height / 2);
-    this.actors = [this.player];
+    this.state = undefined;
+    this.player = undefined;
+    this.actors = [];
     this.distanceTravelled = 0;
+    this.score = 0;
     this.tiles = [];
     this.tileRowCount = this.height / App.TILE_SIZE + 1;
     this.tileColCount = this.width / App.TILE_SIZE;
     this.tileYOffset = -App.TILE_SIZE;
-    for (var i = 0; i < this.tileRowCount; i++) {
-      this.addTileRow();
-    }
     //--------------------------------
 
     //--------------------------------
@@ -93,7 +150,6 @@ var App = function () {
       this.canvas.onmousemove = this.onPointerMove.bind(this);
       this.canvas.onmouseup = this.onPointerEnd.bind(this);
     }
-
     if ("ontouchstart" in this.canvas && "ontouchmove" in this.canvas && "ontouchend" in this.canvas && "ontouchcancel" in this.canvas) {
       this.canvas.ontouchstart = this.onPointerStart.bind(this);
       this.canvas.ontouchmove = this.onPointerMove.bind(this);
@@ -117,6 +173,7 @@ var App = function () {
     //--------------------------------
 
     //--------------------------------
+    this.changeState(App.STATE_START);
     this.runCycle = setInterval(this.run.bind(this), 1000 / App.FRAMES_PER_SECOND);
     //--------------------------------
   }
@@ -143,6 +200,15 @@ var App = function () {
       }
       //--------------------------------
 
+      //Animation Step
+      //--------------------------------
+      this.animationCounter++;
+      if (this.animationCounter >= App.ANIMATION_COUNTER_MAX) {
+        this.animationCounter = 0;
+      }
+      this.console.innerHTML = this.animationCounter + ',' + App.ANIMATION_COUNTER_MAX;
+      //--------------------------------
+
       //Cleanup Input
       //--------------------------------
       for (var i = 0; i < this.keys.length; i++) {
@@ -161,12 +227,21 @@ var App = function () {
   }, {
     key: 'run_start',
     value: function run_start() {
-      //TEST: Press up to start the game.
+      //Check if assets are loaded
+      //--------------------------------
+      if (!this.sprites.loaded) {
+        this.context.clearRect(0, 0, this.width, this.height);
+        this.context.font = App.FONT_STYLE;
+        this.context.fillStyle = App.FONT_COLOUR;
+        this.context.fillText('Happy Chinese New Year! Loading...', App.FONT_SIZE / 2, App.FONT_SIZE);
+        return;
+      }
+      //--------------------------------
+
+      //Get Input: Press up to start the game.
       //--------------------------------
       if (this.pointer.state === App.INPUT_ACTIVE && this.pointer.start.y - this.pointer.now.y > App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY || this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE) {
-        this.state = App.STATE_ADVENTURE;
-        this.pointer.state = App.INPUT_IDLE;
-        this.keys[KeyCodes.UP].state = App.INPUT_IDLE;
+        this.changeState(App.STATE_ADVENTURE);
         return;
       }
       //--------------------------------
@@ -176,6 +251,10 @@ var App = function () {
       this.context.clearRect(0, 0, this.width, this.height);
       this.context.fillStyle = '#39c';
       this.context.fillRect(0, 0, this.width, this.height);
+
+      var animationStep = Math.floor(this.animationCounter / App.ANIMATION_STEP_LENGTH);
+      var arrowSprite = animationStep < 2 ? App.SPRITE_DATA.ARROW_UP_0 : App.SPRITE_DATA.ARROW_UP_1;
+      this.context.drawImage(this.sprites.img, arrowSprite.srcX, arrowSprite.srcY, arrowSprite.width, arrowSprite.height, Math.round(this.width / 2), Math.round(this.height - 2 * App.TILE_SIZE), arrowSprite.width, arrowSprite.height);
       //--------------------------------
     }
 
@@ -184,12 +263,12 @@ var App = function () {
   }, {
     key: 'run_adventure',
     value: function run_adventure() {
-
       //Get User Input
       //--------------------------------
       this.player.intent = { x: 0, y: 0 };
 
       if (this.pointer.state === App.INPUT_ACTIVE) {
+        //Pointer input
         var distX = this.pointer.now.x - this.pointer.start.x;
         var distY = this.pointer.now.y - this.pointer.start.y;
         var dist = Math.sqrt(distX * distX + distY * distY);
@@ -207,24 +286,24 @@ var App = function () {
             this.pointer.start.y = this.pointer.now.y - Math.sin(angle) * App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY * 2;
           }
         }
-      }
+      } else {
+        //Key input
+        if (this.keys[KeyCodes.LEFT].state === App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state != App.INPUT_ACTIVE) {
+          this.player.intent.x = -App.MONKEY_SPEED;
+        } else if (this.keys[KeyCodes.LEFT].state != App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state === App.INPUT_ACTIVE) {
+          this.player.intent.x = App.MONKEY_SPEED;
+        }
 
-      if (this.keys[KeyCodes.LEFT].state === App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state != App.INPUT_ACTIVE) {
-        this.player.intent.x = -App.MONKEY_SPEED;
-      } else if (this.keys[KeyCodes.LEFT].state != App.INPUT_ACTIVE && this.keys[KeyCodes.RIGHT].state === App.INPUT_ACTIVE) {
-        this.player.intent.x = App.MONKEY_SPEED;
-      }
+        if (this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE && this.keys[KeyCodes.DOWN].state != App.INPUT_ACTIVE) {
+          this.player.intent.y = -App.MONKEY_SPEED;
+        } else if (this.keys[KeyCodes.UP].state != App.INPUT_ACTIVE && this.keys[KeyCodes.DOWN].state === App.INPUT_ACTIVE) {
+          this.player.intent.y = App.MONKEY_SPEED;
+        }
 
-      if (this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE && this.keys[KeyCodes.DOWN].state != App.INPUT_ACTIVE) {
-        this.player.intent.y = -App.MONKEY_SPEED;
-      } else if (this.keys[KeyCodes.UP].state != App.INPUT_ACTIVE && this.keys[KeyCodes.DOWN].state === App.INPUT_ACTIVE) {
-        this.player.intent.y = App.MONKEY_SPEED;
-      }
-
-      if (this.keys[KeyCodes.SPACE].state === App.INPUT_ACTIVE && this.keys[KeyCodes.SPACE].duration === App.INPUT_DURATION_SENSITIVITY) {
-        var newActor = new Actor(Utility.randomInt(1, 2) === 1 ? Actor.TYPE_SPIKES : Actor.TYPE_BANANA, Utility.randomInt(App.TILE_SIZE, this.width - App.TILE_SIZE), Utility.randomInt(App.TILE_SIZE, this.height - App.TILE_SIZE));
-        newActor.speed.y = newActor.type === Actor.TYPE_SPIKES ? App.TILE_SCROLL_SPEED + App.GRAVITY : App.TILE_SCROLL_SPEED;
-        this.actors.push(newActor);
+        if (this.player.intent.x !== 0 && this.player.intent.y !== 0) {
+          this.player.intent.x /= Math.sqrt(2);
+          this.player.intent.y /= Math.sqrt(2);
+        }
       }
       //--------------------------------
 
@@ -244,9 +323,25 @@ var App = function () {
       for (var i = 0, actor; actor = this.actors[i]; i++) {
         if (actor == this.player) {
           //Player
+          //Apply player's intended speed
           //----------------
           actor.speed.x = actor.intent.x;
           actor.speed.y = actor.intent.y;
+          //----------------
+
+          //Check tile the player is on
+          //----------------
+          var tileX = Math.floor(actor.x / App.TILE_SIZE);
+          var tileY = Math.floor((actor.y - this.tileYOffset) / App.TILE_SIZE);
+          tileX = Math.min(Math.max(0, tileX), this.tileColCount - 1);
+          tileY = Math.min(Math.max(0, tileY), this.tileRowCount - 1);
+          if (this.tiles[tileY][tileX] === App.TILE_TYPE_AIR) {
+            if (actor.speed.y < 0) {
+              //It's hard to climb if it ain't a vine!
+              actor.speed.y /= 2;
+            }
+            actor.speed.y += App.GRAVITY + App.TILE_SCROLL_SPEED;
+          }
           //----------------
         } else {
             //Banana or Spikes
@@ -257,9 +352,10 @@ var App = function () {
             var distY = this.player.y - actor.y;
             if (collisionThreshold * collisionThreshold > distX * distX + distY * distY) {
               if (actor.type === Actor.TYPE_BANANA) {
+                this.score++;
                 actor.state = Actor.STATE_PLEASEDELETEME;
               } else if (actor.type === Actor.TYPE_SPIKES) {
-                this.state = App.STATE_END;
+                this.changeState(App.STATE_END);
                 return;
               }
             }
@@ -277,7 +373,7 @@ var App = function () {
         if (actor.y > this.height + actor.size) {
           //Bottom border
           if (actor == this.player) {
-            this.state = App.STATE_END;
+            this.changeState(App.STATE_END);
             return;
           } else {
             actor.state = Actor.STATE_PLEASEDELETEME;
@@ -302,38 +398,54 @@ var App = function () {
       //Update Visuals
       //--------------------------------
       this.context.clearRect(0, 0, this.width, this.height);
+      var animationStep = Math.floor(this.animationCounter / App.ANIMATION_STEP_LENGTH);
 
       //Tiles
       for (var y = 0; y < this.tiles.length; y++) {
         for (var x = 0; x < this.tiles[y].length; x++) {
-          switch (this.tiles[y][x]) {
-            case App.TILE_TYPE_VINE:
-              this.context.fillStyle = App.COLOUR_TILE_VINE;
-              break;
-            default:
-              this.context.fillStyle = App.COLOUR_TILE_AIR;
-              break;
-          }
-          this.context.fillRect(x * App.TILE_SIZE, y * App.TILE_SIZE + this.tileYOffset, App.TILE_SIZE, App.TILE_SIZE);
+          var tileSprite = this.tiles[y][x] === App.TILE_TYPE_VINE ? App.SPRITE_DATA.VINE_TILE : App.SPRITE_DATA.AIR_TILE;
+          this.context.drawImage(this.sprites.img, tileSprite.srcX, tileSprite.srcY, tileSprite.width, tileSprite.height, Math.floor(x * App.TILE_SIZE) + tileSprite.offsetX, Math.floor(y * App.TILE_SIZE + this.tileYOffset) + tileSprite.offsetY, tileSprite.width, tileSprite.height);
         }
       }
 
       //Actors
       for (var i = this.actors.length - 1, actor; actor = this.actors[i]; i--) {
+
+        var actorSprite = App.SPRITE_DATA.ARROW_DOWN_0;
         if (actor.type === Actor.TYPE_MONKEY) {
           this.context.fillStyle = App.COLOUR_SHADOW;
+          if (animationStep === 1) {
+            actorSprite = App.SPRITE_DATA.MONKEY_1;
+          } else if (animationStep === 3) {
+            actorSprite = App.SPRITE_DATA.MONKEY_2;
+          } else {
+            actorSprite = App.SPRITE_DATA.MONKEY_0;
+          }
         } else if (actor.type === Actor.TYPE_BANANA) {
           this.context.fillStyle = App.COLOUR_BANANA_SHADOW;
+          actorSprite = App.SPRITE_DATA.BANANA;
         } else if (actor.type === Actor.TYPE_SPIKES) {
           this.context.fillStyle = App.COLOUR_SPIKES_SHADOW;
+          actorSprite = App.SPRITE_DATA.SPIKES;
         } else {
           this.context.fillStyle = App.COLOUR_SHADOW;
+          actorSprite = App.SPRITE_DATA.ARROW_DOWN_0;
         }
+
+        //Draw shadow
         this.context.beginPath();
         this.context.arc(actor.x, actor.y, actor.size / 2, 0, 2 * Math.PI);
         this.context.fill();
         this.context.closePath();
+
+        //Draw sprite
+        this.context.drawImage(this.sprites.img, actorSprite.srcX, actorSprite.srcY, actorSprite.width, actorSprite.height, Math.round(actor.x) + actorSprite.offsetX, Math.round(actor.y) + actorSprite.offsetY, actorSprite.width, actorSprite.height);
       }
+
+      //Score
+      this.context.font = App.FONT_STYLE;
+      this.context.fillStyle = App.FONT_COLOUR;
+      this.context.fillText('Bananas: ' + this.score, App.FONT_SIZE, App.FONT_SIZE);
 
       //Input Marker - Helps show where User Input started.
       if (this.pointer.state === App.INPUT_ACTIVE) {
@@ -461,6 +573,35 @@ var App = function () {
       this.boundingBox = boundingBox;
       this.sizeRatioX = this.width / this.boundingBox.width;
       this.sizeRatioY = this.height / this.boundingBox.height;
+    }
+
+    //----------------------------------------------------------------
+
+  }, {
+    key: 'changeState',
+    value: function changeState(state) {
+      this.pointer.state = App.INPUT_IDLE;
+      this.keys[KeyCodes.UP].state = App.INPUT_IDLE;
+      this.keys[KeyCodes.DOWN].state = App.INPUT_IDLE;
+      this.keys[KeyCodes.LEFT].state = App.INPUT_IDLE;
+      this.keys[KeyCodes.RIGHT].state = App.INPUT_IDLE;
+      this.keys[KeyCodes.UP].duration = 0;
+      this.keys[KeyCodes.DOWN].duration = 0;
+      this.keys[KeyCodes.LEFT].duration = 0;
+      this.keys[KeyCodes.RIGHT].duration = 0;
+
+      this.state = state;
+      if (state === App.STATE_ADVENTURE) {
+        this.player = new Actor(Actor.TYPE_MONKEY, this.width / 2, this.height / 2);
+        this.actors = [this.player];
+        this.distanceTravelled = 0;
+        this.score = 0;
+        this.tiles = [];
+        this.tileYOffset = -App.TILE_SIZE;
+        for (var i = 0; i < this.tileRowCount; i++) {
+          this.addTileRow();
+        }
+      }
     }
 
     //----------------------------------------------------------------
