@@ -15,7 +15,7 @@ Gameplay:
 * Collect as many bananas as you can before you inevitably get hit by a falling
   spike or unceremoniously fall off the screen.
 
-Playable at http://shaunanoordin/cny2016/
+Playable at http://shaunanoordin.com/cny2016/
 
 Tested on:
 * Chrome 48/Firefox 44/Opera 35/Edge 25/IE11 on Win10 + Surface Pro 3.
@@ -24,8 +24,8 @@ Tested on:
 Source code available at https://github.com/shaunanoordin/cny2016/
 
 Previous Chinese New Year greeting cards/games:
-* http://shaunanoordin/cny2015/
-* http://shaunanoordin/cny2014/
-* http://shaunanoordin/cny2013/
+* http://shaunanoordin.com/cny2015/
+* http://shaunanoordin.com/cny2014/
+* http://shaunanoordin.com/cny2013/
 
 Code and art by Shaun A. Noordin (http://shaunanoordin.com) 20160207
