@@ -1,5 +1,11 @@
-/*  CNY2016
- *  (- Shaun A. Noordin, 20160121)
+/*  
+CNY2016
+=======
+
+A Chinese New Year greeting card/'endless climber' game with a Year of the
+Monkey theme.
+
+(Shaun A. Noordin || shaunanoordin.com || 20160207)
 ********************************************************************************
  */
 
@@ -7,9 +13,7 @@
  */
 //==============================================================================
 class App {
-  
-  //----------------------------------------------------------------
-  
+    
   constructor() {
     //--------------------------------
     App.INPUT_IDLE = 0;
@@ -120,6 +124,12 @@ class App {
     //--------------------------------
     
     //--------------------------------
+    App.INTERACTION_WAIT_LIMIT = 1 * App.FRAMES_PER_SECOND;
+    this.interactionWaitCounter = 0;  //Keeps track of how long a user
+                                      //hasn't interacted with the app.
+    //--------------------------------
+    
+    //--------------------------------
     this.keys = new Array(App.MAX_KEYS);
     for (let i = 0; i < this.keys.length; i++) {
       this.keys[i] = {
@@ -169,7 +179,6 @@ class App {
     this.changeState(App.STATE_START);
     this.runCycle = setInterval(this.run.bind(this), 1000 / App.FRAMES_PER_SECOND);
     //--------------------------------
-    
   }
   
   //----------------------------------------------------------------
@@ -202,6 +211,10 @@ class App {
     
     //Cleanup Input
     //--------------------------------
+    if (this.pointer.state === App.INPUT_ENDED) {
+      this.pointer.duration = 0;
+      this.pointer.state = App.INPUT_IDLE;
+    }
     for (let i = 0; i < this.keys.length; i++) {
       if (this.keys[i].state === App.INPUT_ACTIVE) {
         this.keys[i].duration++;
@@ -230,10 +243,13 @@ class App {
     
     //Get Input: Press up to start the game.
     //--------------------------------
-    if ((this.pointer.state === App.INPUT_ACTIVE &&
+    this.interactionWaitCounter = Math.min(
+      this.interactionWaitCounter + 1, App.INTERACTION_WAIT_LIMIT);
+    if (this.interactionWaitCounter === App.INTERACTION_WAIT_LIMIT &&
+        ((this.pointer.state === App.INPUT_ACTIVE &&
             (this.pointer.start.y - this.pointer.now.y) >
                 (App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY)) ||
-        this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE) {
+        this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE)) {
       this.changeState(App.STATE_ADVENTURE);
       return;
     }
@@ -246,14 +262,57 @@ class App {
     this.context.fillRect(0, 0, this.width, this.height);
     
     let animationStep = Math.floor(this.animationCounter / App.ANIMATION_STEP_LENGTH);
-    let arrowSprite = (animationStep < 2) ?
-      App.SPRITE_DATA.ARROW_UP_0 :
-      App.SPRITE_DATA.ARROW_UP_1;
-    this.context.drawImage(this.sprites.img,
-      arrowSprite.srcX, arrowSprite.srcY,
-      arrowSprite.width, arrowSprite.height,
-      Math.round(this.width / 2), Math.round(this.height - 2 * App.TILE_SIZE),
-      arrowSprite.width, arrowSprite.height);
+    
+    if (this.interactionWaitCounter === App.INTERACTION_WAIT_LIMIT) {      
+      let arrowSprite = (animationStep < 2) ?
+        App.SPRITE_DATA.ARROW_UP_0 :
+        App.SPRITE_DATA.ARROW_UP_1;
+      this.context.drawImage(this.sprites.img,
+        arrowSprite.srcX, arrowSprite.srcY,
+        arrowSprite.width, arrowSprite.height,
+        Math.round(this.width / 2 + arrowSprite.offsetX),
+        Math.round(this.height - 2 * App.TILE_SIZE + arrowSprite.offsetY),
+        arrowSprite.width, arrowSprite.height);
+    }
+    //--------------------------------
+  }
+  
+  //----------------------------------------------------------------
+  
+  run_end() {    
+    //Get Input: Press up to restart the game.
+    //--------------------------------
+    this.interactionWaitCounter = Math.min(
+      this.interactionWaitCounter + 1, App.INTERACTION_WAIT_LIMIT);
+    if (this.interactionWaitCounter === App.INTERACTION_WAIT_LIMIT &&
+        ((this.pointer.state === App.INPUT_ACTIVE &&
+            (this.pointer.start.y - this.pointer.now.y) >
+                (App.INPUT_DISTANCE_SENSITIVITY * this.sizeRatioY)) ||
+        this.keys[KeyCodes.UP].state === App.INPUT_ACTIVE)) {
+      this.changeState(App.STATE_START);
+      return;
+    }
+    //--------------------------------
+    
+    //Update Visuals
+    //--------------------------------
+    this.context.clearRect(0, 0, this.width, this.height);
+    this.context.fillStyle = '#c33';
+    this.context.fillRect(0, 0, this.width, this.height);
+    
+    let animationStep = Math.floor(this.animationCounter / App.ANIMATION_STEP_LENGTH);
+    
+    if (this.interactionWaitCounter === App.INTERACTION_WAIT_LIMIT) {      
+      let arrowSprite = (animationStep < 2) ?
+        App.SPRITE_DATA.ARROW_UP_0 :
+        App.SPRITE_DATA.ARROW_UP_1;
+      this.context.drawImage(this.sprites.img,
+        arrowSprite.srcX, arrowSprite.srcY,
+        arrowSprite.width, arrowSprite.height,
+        Math.round(this.width / 2 + arrowSprite.offsetX),
+        Math.round(this.height - 2 * App.TILE_SIZE + arrowSprite.offsetY),
+        arrowSprite.width, arrowSprite.height);
+    }
     //--------------------------------
   }
   
@@ -416,7 +475,6 @@ class App {
     
     //Actors
     for (let i = this.actors.length - 1, actor; actor = this.actors[i]; i--) {
-      
       let actorSprite = App.SPRITE_DATA.ARROW_DOWN_0;
       if (actor.type === Actor.TYPE_MONKEY) {
         this.context.fillStyle = App.COLOUR_SHADOW;
@@ -469,11 +527,60 @@ class App {
       this.context.closePath();
     }
     
-    //this.context.beginPath();
-    //this.context.moveTo(this.pointer.start.x, this.pointer.start.y);
-    //this.context.lineTo(this.pointer.now.x, this.pointer.now.y);
-    //this.context.stroke();
-    //this.context.closePath();
+    //Hint Marker - Helps show user what the controls are
+    if (this.pointer.state === App.INPUT_IDLE &&
+        this.keys[KeyCodes.RIGHT].state === App.INPUT_IDLE &&
+        this.keys[KeyCodes.DOWN].state === App.INPUT_IDLE &&
+        this.keys[KeyCodes.LEFT].state === App.INPUT_IDLE &&
+        this.keys[KeyCodes.UP].state === App.INPUT_IDLE) {
+      if (this.interactionWaitCounter < App.INTERACTION_WAIT_LIMIT) {
+        this.interactionWaitCounter++;
+      } else {
+        let arrowSprite;
+        
+        arrowSprite = (animationStep < 2) ?
+          App.SPRITE_DATA.ARROW_RIGHT_0 :
+          App.SPRITE_DATA.ARROW_RIGHT_1;
+        this.context.drawImage(this.sprites.img,
+          arrowSprite.srcX, arrowSprite.srcY,
+          arrowSprite.width, arrowSprite.height,
+          Math.round(this.player.x + arrowSprite.offsetX + arrowSprite.width),
+          Math.round(this.player.y + arrowSprite.offsetY),
+          arrowSprite.width, arrowSprite.height);
+        
+        arrowSprite = (animationStep < 2) ?
+          App.SPRITE_DATA.ARROW_DOWN_0 :
+          App.SPRITE_DATA.ARROW_DOWN_1;
+        this.context.drawImage(this.sprites.img,
+          arrowSprite.srcX, arrowSprite.srcY,
+          arrowSprite.width, arrowSprite.height,
+          Math.round(this.player.x + arrowSprite.offsetX),
+          Math.round(this.player.y + arrowSprite.offsetY + arrowSprite.height),
+          arrowSprite.width, arrowSprite.height);
+        
+        arrowSprite = (animationStep < 2) ?
+          App.SPRITE_DATA.ARROW_LEFT_0 :
+          App.SPRITE_DATA.ARROW_LEFT_1;
+        this.context.drawImage(this.sprites.img,
+          arrowSprite.srcX, arrowSprite.srcY,
+          arrowSprite.width, arrowSprite.height,
+          Math.round(this.player.x + arrowSprite.offsetX - arrowSprite.width),
+          Math.round(this.player.y + arrowSprite.offsetY),
+          arrowSprite.width, arrowSprite.height);
+        
+        arrowSprite = (animationStep < 2) ?
+          App.SPRITE_DATA.ARROW_UP_0 :
+          App.SPRITE_DATA.ARROW_UP_1;
+        this.context.drawImage(this.sprites.img,
+          arrowSprite.srcX, arrowSprite.srcY,
+          arrowSprite.width, arrowSprite.height,
+          Math.round(this.player.x + arrowSprite.offsetX),
+          Math.round(this.player.y + arrowSprite.offsetY - arrowSprite.height),
+          arrowSprite.width, arrowSprite.height);
+      }
+    } else {
+      this.interactionWaitCounter = 0;
+    }
     //--------------------------------
     
     //Debug
@@ -481,17 +588,6 @@ class App {
     //this.console.innerHTML = 'Actors: ' + this.actors.length;
     //--------------------------------
 
-  }
-  
-  //----------------------------------------------------------------
-  
-  run_end() {
-    //Update Visuals
-    //--------------------------------
-    this.context.clearRect(0, 0, this.width, this.height);
-    this.context.fillStyle = '#c33';
-    this.context.fillRect(0, 0, this.width, this.height);
-    //--------------------------------
   }
   
   //----------------------------------------------------------------
@@ -582,17 +678,27 @@ class App {
   //----------------------------------------------------------------
   
   changeState(state) {
-    this.pointer.state = App.INPUT_IDLE;
-    this.keys[KeyCodes.UP].state = App.INPUT_IDLE;
-    this.keys[KeyCodes.DOWN].state = App.INPUT_IDLE;
-    this.keys[KeyCodes.LEFT].state = App.INPUT_IDLE;
-    this.keys[KeyCodes.RIGHT].state = App.INPUT_IDLE;
-    this.keys[KeyCodes.UP].duration = 0;
-    this.keys[KeyCodes.DOWN].duration = 0;
-    this.keys[KeyCodes.LEFT].duration = 0;
-    this.keys[KeyCodes.RIGHT].duration = 0;
+    //Initialise keys
+    //--------------------------------
+    this.keys = new Array(App.MAX_KEYS);
+    for (let i = 0; i < this.keys.length; i++) {
+      this.keys[i] = {
+        state: App.INPUT_IDLE,
+        duration: 0
+      };
+    }
+    this.pointer = {
+      start: { x: 0, y: 0 },
+      now: { x: 0, y: 0 },
+      state: App.INPUT_IDLE,
+      duration: 0
+    }
+    //--------------------------------
     
+    //Change state
+    //--------------------------------
     this.state = state;
+    this.interactionWaitCounter = 0;
     if (state === App.STATE_ADVENTURE) {      
       this.player = new Actor(Actor.TYPE_MONKEY, this.width / 2, this.height / 2);
       this.actors = [this.player];
@@ -604,6 +710,7 @@ class App {
         this.addTileRow();
       }
     }
+    //--------------------------------
   }
   
   //----------------------------------------------------------------
@@ -613,21 +720,17 @@ class App {
   addTileRow() {
     //A new row of randomised tiles.
     //--------------------------------
+    let difficultyLevel = this.distanceTravelled /
+      (App.TILE_SIZE * App.DIFFICULTY_RAMP);
     let newRow = [];
     for (let i = 0; i < this.tileColCount; i++) {
-      let newTile = (i >= 1 && i < this.tileColCount - 1)
-        ? Utility.randomInt(1,5)
-        : 1;
-      switch (newTile) {
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-          newTile = App.TILE_TYPE_VINE;
-          break;
-        default:
-          newTile = App.TILE_TYPE_AIR;
-          break;
+      let newTile = App.TILE_TYPE_AIR;
+      
+      if (i >= 1 && i < this.tileColCount - 1) {
+        if (difficultyLevel < 1 ||
+            Utility.randomInt(1,5) > 1) {
+          newTile = App.TILE_TYPE_VINE
+        }
       }
       newRow.push(newTile);
     }
@@ -636,8 +739,6 @@ class App {
     
     //Add a banana.
     //--------------------------------
-    let difficultyLevel = this.distanceTravelled / (App.TILE_SIZE * App.DIFFICULTY_RAMP);
-    
     if (difficultyLevel > 0 &&
         Utility.randomInt(1,3) === 1) {
       let newActor = new Actor(
